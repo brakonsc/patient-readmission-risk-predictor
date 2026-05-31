@@ -217,3 +217,6 @@ data/
 
 # VS folder (redundant but explicit)
 .vs/
+
+# Raw data files (download instructions in data/README.md)
+data/*.csv
