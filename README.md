@@ -1,112 +1,142 @@
-# Healthcare Risk Predictor: Hospital Readmission Analysis
+# Patient Readmission Risk Predictor
 
-A data analytics project that uses SQL and Python to identify clinical factors driving 30-day hospital readmissions in a diabetic patient cohort. Built on the UCI Diabetes 130-US Hospitals dataset (101,766 encounters).
+A machine learning pipeline for predicting 30-day hospital readmission risk using the UCI Diabetes 130-US Hospitals dataset (~100,000 encounters). Built to demonstrate clinical feature engineering, class imbalance handling, and interpretable model evaluation.
 
 ---
 
-## Project Overview
-
-This project simulates a real-world healthcare analytics workflow — from raw data exploration through relational database design, SQL-based KPI reporting, and multi-factor risk analysis. The goal is to identify which patient characteristics, medications, and clinical conditions most strongly predict 30-day readmission.
+## Project Structure
+healthcare-risk-predictor/
+├── data/
+│   ├── README.md               # Dataset source, license, column docs, download instructions
+│   └── diabetic_data.csv       # UCI dataset — not tracked in Git (see data/README.md)
+├── notebooks/
+│   ├── 01_exploration.ipynb    # EDA, class imbalance analysis, risk factor lift, composite score stratification
+│   ├── 02_sql_analysis.ipynb   # SQL-based analysis
+│   └── 03_modeling.ipynb       # Logistic Regression + Random Forest, ROC/PR curves, threshold analysis, CV
+├── scripts/                    # Supplementary analysis scripts
+├── src/
+│   └── features.py             # Reusable feature engineering module
+├── requirements.txt
+└── README.md
 
 ---
 
 ## Dataset
 
-**Source:** [UCI Diabetes 130-US Hospitals (1999–2008)](https://archive.ics.uci.edu/ml/datasets/diabetes+130-us+hospitals+for+years+1999-2008)
+**UCI Diabetes 130-US Hospitals (1999-2008)**
+~100,000 inpatient encounters | ~11% 30-day readmission rate | 50 features
 
-- 101,766 inpatient encounters across 130 US hospitals
-- 50 features per encounter: demographics, diagnoses, medications, lab results, and outcomes
-- Target variable: `readmitted` — `<30` (within 30 days), `>30`, or `NO`
+Download instructions and full column documentation: [`data/README.md`](data/README.md)
+Source: [UCI ML Repository](https://archive.ics.uci.edu/ml/datasets/diabetes+130-us+hospitals+for+years+1999-2008)
+License: CC BY 4.0
 
 ---
 
-## Project Structure
+## Setup
 
+```powershell
+# 1. Clone the repo
+git clone https://github.com/brakonsc/patient-readmission-risk-predictor.git
+cd patient-readmission-risk-predictor
+
+# 2. Create and activate virtual environment
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. Download the dataset
+# Follow instructions in data/README.md and place diabetic_data.csv in data/
+
+# 5. Launch Jupyter
+python -m jupyter notebook
 ```
-healthcare-risk-predictor/
-├── data/
-│   └── diabetic_data.csv          # Raw dataset (101,766 rows)
-├── notebooks/
-│   ├── 01_exploration.ipynb       # Initial data exploration and risk scoring
-│   └── 02_sql_analysis.ipynb      # SQL-based KPI dashboard and deep-dive analyses
-├── scripts/
-│   ├── add_deep_dive.py           # LOS x medication x readmission analysis cells
-│   ├── add_race_analysis.py       # Race correlation analysis cells
-│   ├── add_medication_analysis.py # Medication-level readmission analysis cells
-│   └── add_weight_analysis.py     # Weight factor analysis cells
-├── hospital.db                    # SQLite database (3 relational tables)
-└── README.md
+
+> **Note:** If you have multiple Python/Jupyter installations, use `python -m jupyter notebook`
+> to ensure the venv kernel is used. Register the kernel explicitly if needed:
+> `python -m ipykernel install --user --name=healthcare-risk`
+
+---
+
+## Feature Engineering (`src/features.py`)
+
+The `src/features.py` module provides a clean, reusable pipeline for transforming raw encounter data into model-ready features.
+
+### Entry Point
+
+```python
+from src.features import load_data, engineer_all_features
+
+df_raw = load_data("data/diabetic_data.csv")
+df = engineer_all_features(df_raw)
 ```
+
+### Functions
+
+| Function | Description |
+|---|---|
+| `load_data(path)` | Loads CSV, replaces `?` sentinel values with `NaN`, casts numeric columns |
+| `make_readmission_flag(df)` | Binary target: readmitted within 30 days |
+| `make_long_stay_flag(df)` | Flag for LOS >= 7 days |
+| `make_high_med_burden_flag(df)` | Flag for high medication count (>= 15) |
+| `make_high_utilizer_flag(df)` | Flag for frequent prior visits (outpatient + inpatient + emergency >= 3) |
+| `make_age_risk_flag(df)` | Flag for age groups with elevated readmission risk |
+| `make_risk_score_v1(df)` | Additive composite score (0-3, unweighted) |
+| `make_risk_score_v2(df)` | Weighted composite score (0-4, adds age risk) |
+| `engineer_all_features(df)` | Full pipeline -- all flags + both scores |
+
+Column presence is validated before each transformation to prevent silent failures from out-of-order calls.
 
 ---
 
 ## Notebooks
 
-### `01_exploration.ipynb` — Data Exploration & Risk Scoring
-- Data loading, shape inspection, missing value audit
-- Readmission rate breakdown by age, length of stay, and number of diagnoses
-- Feature engineering: `long_stay`, `high_med_burden`, `high_utilizer` flags
-- Composite risk score (v1 and v2) showing stepwise readmission increase
-- Heatmap: readmission risk by age group × length of stay
+### `01_exploration.ipynb` -- Exploratory Data Analysis
+- Class distribution and imbalance quantification (~11% positive rate)
+- Risk factor lift analysis (which features actually predict readmission)
+- Composite risk score stratification
+- Length-of-stay distribution
+- Key findings summary table
 
-### `02_sql_analysis.ipynb` — SQL Analysis & KPI Dashboard
-Built on a normalized SQLite database with three tables:
+### `02_sql_analysis.ipynb` -- SQL-Based Analysis
+- Encounter-level queries against the dataset
+- Aggregations by age group, admission type, and discharge disposition
 
-| Table | Contents |
-|---|---|
-| `patient_table` | Unique patients: `patient_nbr`, `age`, `gender` |
-| `encounters` | Visit-level: `encounter_id`, `time_in_hospital`, `readmitted` |
-| `utilization` | Per-encounter: `num_medications`, outpatient/inpatient/emergency counts |
-
-**Sections:**
-1. **SQL Analysis** — multi-table joins, readmission by age and LOS
-2. **Cohort Analysis** — high utilizers, long-stay patients, medication burden, combined risk score
-3. **KPI Dashboard** — single-query summary table with formatted metrics
-4. **Deep Dive: LOS × Medication Burden** — correlation matrix, heatmaps, daily LOS trend
-5. **Race Analysis** — readmission rates by race, interaction with risk group and LOS
-6. **Medication-Level Analysis** — all 23 diabetes medications tested for readmission signal
-7. **Weight Analysis** — weight category vs readmission (with data quality caveat)
+### `03_modeling.ipynb` -- Machine Learning Models
+- Models: Logistic Regression, Random Forest
+- Class imbalance handling: `class_weight='balanced'`
+- Evaluation: AUC-ROC, Precision-Recall AUC (appropriate for imbalanced data)
+- ROC and PR curve plots
+- Feature importance (LR coefficients + RF feature importances)
+- Confusion matrix with threshold sensitivity analysis
+- 5-fold stratified cross-validation
+- Clinical interpretation and model limitations
 
 ---
 
-## Key Findings
+## Evaluation Philosophy
 
-### Hospital KPI Summary
-| Metric | Value |
-|---|---|
-| Total Encounters | 101,766 |
-| 30-day Readmission Rate | 11.2% |
-| Avg Length of Stay | 4.4 days |
-| Avg Medications | 16.0 |
-| High Risk Patients | 2.5% |
+Standard accuracy is misleading on imbalanced clinical datasets (~11% positive rate). This project prioritizes:
 
-### Risk Factors
-- **High risk classification** (≥2 of 3: high utilization, LOS ≥7d, medications ≥15) is the strongest single predictor — 14–22% readmission vs 8–11% for standard risk patients
-- **LOS and medication count are collinear (r=0.47)** — longer stays almost always come with higher medication burden
-- **Dose reductions are the clearest medication signal**: insulin Down (13.9%), glipizide Down (15.2%), pioglitazone Down (15.3%) — dose decreases likely reflect clinical instability
-- **Insulin** is prescribed to 53% of patients; dose changes (Up or Down) raise readmission from 11.1% (Steady) to 13.0–13.9%
-- **Metformin is protective**: the only medication where being prescribed correlates with *lower* readmission (−1.82%); dose increases drop readmission to 8.2%
-- **Race** shows minimal independent effect on overall readmission (9.6–11.3% across groups), but disparities open within the High Risk cohort
-- **Weight data is 96.9% missing** — exploratory only; very low weight [0–25 lbs] shows the highest readmission rate (16.7%), likely reflecting frailty
+- **Precision-Recall AUC** -- captures model performance in the minority class (actual readmissions)
+- **Threshold sensitivity analysis** -- clinical deployment requires tuning the decision threshold based on the cost tradeoff between missed readmissions (false negatives) and unnecessary interventions (false positives)
+- **Cross-validation** -- guards against overfitting to a single train/test split
 
 ---
 
-## Tools & Technologies
+## Limitations
 
-| Tool | Use |
-|---|---|
-| Python (pandas, matplotlib, numpy) | Data manipulation and visualization |
-| SQLite + `sqlite3` | Relational database and SQL querying |
-| Jupyter Notebook | Interactive analysis environment |
-| SQL (JOINs, CASE, window aggregates) | KPI queries, cohort segmentation |
-| Git / GitHub | Version control |
+- Dataset reflects 1999-2008 encounters; clinical patterns and coding practices have changed
+- Target leakage risk: some features (e.g., discharge disposition) may post-date the readmission decision
+- Models are not validated on external cohorts -- not suitable for clinical deployment
+- Demographic features are limited; social determinants of health are not captured
 
 ---
 
-## Future Improvements
+## Tech Stack
 
-- Build a machine learning model (logistic regression, random forest) using engineered features
-- Expand the relational schema to include diagnosis codes and lab results
-- Build an interactive dashboard (Plotly Dash or Streamlit)
-- Address missing data (weight, medical specialty) with imputation strategies
-- Validate the composite risk score against clinical benchmarks
+- Python 3.12
+- pandas, numpy, scikit-learn
+- matplotlib, seaborn
+- Jupyter Notebook
