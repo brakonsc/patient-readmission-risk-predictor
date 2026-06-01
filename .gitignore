@@ -220,3 +220,11 @@ data/
 
 # Raw data files (download instructions in data/README.md)
 data/*.csv
+
+# Data files
+data/*.csv
+data/*.db
+
+# Jupyter artifacts
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/
