@@ -6,18 +6,18 @@ A machine learning pipeline for predicting 30-day hospital readmission risk usin
 
 ## Project Structure
 healthcare-risk-predictor/
-├── data/
-│   ├── README.md               # Dataset source, license, column docs, download instructions
-│   └── diabetic_data.csv       # UCI dataset — not tracked in Git (see data/README.md)
-├── notebooks/
-│   ├── 01_exploration.ipynb    # EDA, class imbalance analysis, risk factor lift, composite score stratification
-│   ├── 02_sql_analysis.ipynb   # SQL-based analysis
-│   └── 03_modeling.ipynb       # Logistic Regression + Random Forest, ROC/PR curves, threshold analysis, CV
-├── scripts/                    # Supplementary analysis scripts
-├── src/
-│   └── features.py             # Reusable feature engineering module
-├── requirements.txt
-└── README.md
++-- data/
+|   +-- README.md               # Dataset source, license, column docs, download instructions
+|   +-- diabetic_data.csv       # UCI dataset - not tracked in Git (see data/README.md)
++-- notebooks/
+|   +-- 01_exploration.ipynb    # EDA, class imbalance analysis, risk factor lift
+|   +-- 02_sql_analysis.ipynb   # SQL-based analysis
+|   +-- 03_modeling.ipynb       # Logistic Regression + Random Forest, ROC/PR curves, CV
++-- scripts/                    # Supplementary analysis scripts
++-- src/
+|   +-- features.py             # Reusable feature engineering module
++-- requirements.txt
++-- README.md
 
 ---
 
